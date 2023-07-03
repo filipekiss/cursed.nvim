@@ -2,6 +2,10 @@ local M = {}
 local IDLE = "IDLE"
 local MOVING = "MOVING"
 M.timer_id = nil
+M.defaults = {
+	delay = vim.o.updatetime,
+	ignore_filetype = { "neo-tree", "starter" },
+}
 
 local function run_user_autocmd(pattern, opts)
 	opts.pattern = pattern
@@ -17,6 +21,10 @@ local Cursed = buffer_table({
 })
 
 local function should_activate(status)
+	-- if the current buffer matches one of the ignored file types
+	if vim.tbl_contains(M.options.ignore_filetype, vim.bo.filetype) then
+		return false
+	end
 	-- if the cursed is disabled for the current buffer
 	if Cursed.disabled == true then
 		return false
@@ -76,7 +84,7 @@ local function setup_smart_cursorline()
 
 	-- enable cursorline when moving windows
 	autocmd({ "WinEnter" }, {
-		group = augroup("cursed_smart_cursorline", {clear = true}),
+		group = augroup("cursed_smart_cursorline", { clear = true }),
 		pattern = "*",
 		callback = function()
 			if should_activate() then
@@ -87,7 +95,7 @@ local function setup_smart_cursorline()
 
 	-- setup the smart cursorline events
 	autocmd("User", {
-		group = augroup("cursed_smart_cursorline", {clear = false}),
+		group = augroup("cursed_smart_cursorline", { clear = false }),
 		pattern = "CursedStart",
 		callback = function()
 			vim.wo.cursorline = false
@@ -95,7 +103,7 @@ local function setup_smart_cursorline()
 	})
 
 	autocmd("User", {
-		group = augroup("cursed_smart_cursorline", {clear = false}),
+		group = augroup("cursed_smart_cursorline", { clear = false }),
 		pattern = "CursedStop",
 		callback = function()
 			vim.wo.cursorline = true
@@ -108,15 +116,15 @@ function M.setup(opts)
 		return
 	end
 	vim.g.cursed_loaded = true
-	local cursed_delay = opts.delay or vim.o.updatetime
 	local augroup = vim.api.nvim_create_augroup
 	local autocmd = vim.api.nvim_create_autocmd
+	M.options = vim.tbl_deep_extend("force", M.defaults, opts)
 
 	autocmd({ "CursorMoved", "CursorMovedI" }, {
 		group = augroup("cursed", { clear = true }),
 		pattern = { "*" },
 		callback = function()
-			cursor_moved(cursed_delay)
+			cursor_moved(M.options.delay)
 		end,
 	})
 
@@ -132,7 +140,7 @@ function M.setup(opts)
 		end,
 	})
 
-	if (opts.smart_cursorline) then
+	if opts.smart_cursorline then
 		setup_smart_cursorline()
 	end
 end
